@@ -14,6 +14,7 @@
  bool up=false,down=false,left=false,right=false;
  int t_up=1000,t_down=10,t_right=1000,t_left=10;
  int x=0,y=0;
+ int cursor_x = 0,cursor_y = 0;
  void setup() {
   GLCD.Init();
   GLCD.ClearScreen();
@@ -27,6 +28,7 @@
  }
 
  void loop() {
+  int prev_cur_x = cursor_x, prev_cur_y = cursor_y;
   delay(50);
   value1 = analogRead(joyPin1);  
   delay(10);            
@@ -60,6 +62,20 @@
   {
     penLift=!(penLift);
   }
+  
+  cursor_x = x; cursor_y = y;
+  GLCD.SetDot(prev_cur_x,prev_cur_y,WHITE);
+  GLCD.SetDot(prev_cur_x+1,prev_cur_y,WHITE);
+  GLCD.SetDot(prev_cur_x-1,prev_cur_y,WHITE);
+  GLCD.SetDot(prev_cur_x,prev_cur_y+1,WHITE);
+  GLCD.SetDot(prev_cur_x,prev_cur_y-1,WHITE);
+
+  GLCD.SetDot(cursor_x,cursor_y,BLACK);
+  GLCD.SetDot(cursor_x+1,cursor_y,BLACK);
+  GLCD.SetDot(cursor_x-1,cursor_y,BLACK);
+  GLCD.SetDot(cursor_x,cursor_y+1,BLACK);
+  GLCD.SetDot(cursor_x,cursor_y-1,BLACK);
+
   if(!penLift)
   GLCD.SetDot(x,y,BLACK);
   else 
