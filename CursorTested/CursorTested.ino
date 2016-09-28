@@ -50,12 +50,12 @@ void loop() {
     x = x + 1;
     if (x > 127)x = 0;
   }
-  else if (value2 < 10)
+  else if (value2 < 20)
   {
     x = x - 1;
     if (x < 0)x = 127;
   }
-  if (value1 < 10)
+  if (value1 < 20)
   {
     y = y + 1;
     if (y > 63)y = 0;
