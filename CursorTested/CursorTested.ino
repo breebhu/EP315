@@ -91,9 +91,9 @@ void loop() {
 }
 
 int ActualReadData(int x, int y) {
-  uint8_t bitarray[] = {0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07};
+  uint8_t bitarray[] = {0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80};
   GLCD.GotoXY(x, y);
   uint8_t data = GLCD.ReadData();
-  if (data & bitarray[y % 8] == bitarray[y % 8]) return BLACK;
+  if (data & bitarray[y % 8]) return BLACK;
   else return WHITE;
 }
