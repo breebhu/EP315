@@ -4,26 +4,36 @@
 // int buttonPin = ;
 int joyPin1 = A5;                 // slider variable connecetd to analog pin 0
 int joyPin2 = A4;
-int SWPin = 3;
+int SWPin = 2;
+int ErasePin = 3;
+int ClearPin = 18;
 // slider variable connecetd to analog pin 1
 int value1 = 0;                  // variable to read the value from the analog pin 0
 int value2 = 0;
-int value3 = -1;
-bool penLift = false;
+volatile bool penLift = false;
+volatile bool eraseMode = false;
+volatile bool clearScreen = false;
 // variable to read the value from the analog pin 1
 int x, y;
 int real_image[3][3] = {0};
 
 void setup() {
   GLCD.Init();
-  x = GLCD.CenterX; y = GLCD.CenterY;
-  real_image[1][1] = 1;
-  GLCD.ClearScreen();
-  GLCD.CursorTo(x, y);
   pinMode(joyPin1, INPUT);
   pinMode(joyPin2, INPUT);
   pinMode(SWPin, INPUT);
   digitalWrite(SWPin, HIGH);
+  pinMode(ErasePin, INPUT);
+
+  attachInterrupt(digitalPinToInterrupt(SWPin), penLiftISR, FALLING);
+  attachInterrupt(digitalPinToInterrupt(ErasePin), eraseModeISR, RISING);
+  attachInterrupt(digitalPinToInterrupt(ClearPin), clearScreenISR, RISING);
+
+  x = GLCD.CenterX; y = GLCD.CenterY;
+  real_image[1][1] = 1;
+  GLCD.ClearScreen();
+  GLCD.CursorTo(x, y);
+
   Serial.begin(9600);
 }
 
@@ -33,7 +43,6 @@ void loop() {
   value1 = analogRead(joyPin1);
   delay(10);
   value2 = analogRead(joyPin2);
-  value3 = digitalRead(SWPin);
 
   GLCD.SetDot((x - 1) % 128, (y - 1) % 64, real_image[0][0]);
   GLCD.SetDot((x - 1) % 128, y, real_image[0][1]);
@@ -65,12 +74,15 @@ void loop() {
     y = y - 1;
     if (y < 0)y = 63;
   }
-  if (value3 == 0)
-  {
-    penLift = !(penLift);
-  }
 
-  GLCD.SetDot(x, y, BLACK);
+  if (!penLift) {
+    if (!eraseMode) {
+      GLCD.SetDot(x, y, BLACK);
+    }
+    else {
+      GLCD.SetDot(x, y, WHITE);
+    }
+  }
 
   real_image[0][0] = ActualReadData((x - 1) % 128, (y - 1) % 64);
   real_image[1][0] = ActualReadData(x, (y - 1) % 64);
@@ -88,6 +100,7 @@ void loop() {
   GLCD.SetDot(x, (y + 1) % 64, BLACK);
   GLCD.SetDot(x, y - 1, BLACK);
 
+  if (clearScreen) clearScreenFunc();
 }
 
 int ActualReadData(int x, int y) {
@@ -97,3 +110,29 @@ int ActualReadData(int x, int y) {
   if (data & bitarray[y % 8]) return BLACK;
   else return WHITE;
 }
+
+void penLiftISR() {
+  penLift = !(penLift);
+}
+
+void eraseModeISR() {
+  eraseMode = !(eraseMode);
+}
+
+void clearScreenISR() {
+  clearScreen = true;
+}
+
+void clearScreenFunc() {
+  for (int i = 0; i < 3; i++) {
+    for (int j = 0; j < 3; j++) {
+      real_image[i][j] = 0;
+    }
+  }
+  x = GLCD.CenterX; y = GLCD.CenterY;
+  real_image[1][1] = 1;
+  GLCD.ClearScreen();
+  GLCD.CursorTo(x, y);
+  clearScreen = false;
+}
+
