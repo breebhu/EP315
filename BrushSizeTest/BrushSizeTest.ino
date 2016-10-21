@@ -4,10 +4,10 @@
 // int buttonPin = ;
 int joyPin1 = A5;                 // slider variable connecetd to analog pin 0
 int joyPin2 = A4;
-int SWPin = 2;
+int SWPin = 19; // interchanged with BSCP=2
 int ErasePin = 3;
 int ClearPin = 18;
-int BrushSizeChangePin = 19;
+int BrushSizeChangePin = 2;
 // slider variable connecetd to analog pin 1
 int value1 = 0;                  // variable to read the value from the analog pin 0
 int value2 = 0;
@@ -26,7 +26,7 @@ void setup() {
   pinMode(SWPin, INPUT);
   digitalWrite(SWPin, HIGH);
   pinMode(ErasePin, INPUT);
-
+  
   attachInterrupt(digitalPinToInterrupt(SWPin), penLiftISR, FALLING);
   attachInterrupt(digitalPinToInterrupt(ErasePin), eraseModeISR, RISING);
   attachInterrupt(digitalPinToInterrupt(ClearPin), clearScreenISR, RISING);
@@ -48,7 +48,7 @@ void loop() {
 
   for (int i = -2; i < 3; i++) {
     for (int j = -2; j < 3; j++) {
-      GLCD.SetDot(x + i, y + j, real_image[2 + j][2 + i]);
+      GLCD.SetDot(x + j, y + i, real_image[2 + j][2 + i]);
     }
   }
 
@@ -73,23 +73,22 @@ void loop() {
     if (y < 0)y = 63;
   }
 
-  if (!penLift) {
-    if (!eraseMode) {
+  //if (!penLift) {
+    //if (!eraseMode) {
       GLCD.SetDot(x, y, BLACK);
-    }
-    else {
-      GLCD.SetDot(x, y, WHITE);
-    }
-  }
+   // }
+    //else {
+    //  GLCD.SetDot(x, y, WHITE);
+   // }
+  //}
 
   for (int i = -2; i < 3; i++) {
     for (int j = -2; j < 3; j++) {
-      real_image[2 - j][2 - i] = ActualReadData((x + i) % 128, (y + j) % 64);
+      real_image[2 + j][2 + i] = ActualReadData((x + j) % 128, (y + i) % 64);
     }
   }
-
-  setBrush(brushType);
-
+  Serial.println(brushType);
+  setBrush(2);
   if (clearScreen) clearScreenFunc();
 }
 
@@ -114,6 +113,34 @@ void brushSizeChangeISR() {
   }
 }
 
+int setBrush(int BrushType) {
+  if (BrushType == 0) {
+    GLCD.SetDot(x, y, BLACK);
+    GLCD.SetDot(x + 1, y, BLACK);
+    GLCD.SetDot(x - 1, y, BLACK);
+    GLCD.SetDot(x, y + 1, BLACK);
+    GLCD.SetDot(x, y - 1, BLACK);
+    return 0;
+  }
+  if (BrushType == 1) {
+    GLCD.SetDot(x, y, BLACK);
+    GLCD.SetDot(x + 1, y, BLACK);
+    GLCD.SetDot(x, y - 1, BLACK);
+    GLCD.SetDot(x+1, y - 1, BLACK);
+    return 0;
+  }
+  for (int i = -1; i < 2; i++) {
+    for (int j = -1; j < 2; j++) {
+      GLCD.SetDot(x + i, y + j, BLACK);
+    }
+  }
+  GLCD.SetDot(x + 2, y, BLACK);
+  GLCD.SetDot(x - 2, y, BLACK);
+  GLCD.SetDot(x, y + 2, BLACK);
+  GLCD.SetDot(x, y - 2, BLACK);
+  return 0;
+}
+
 int ActualReadData(int x, int y) {
   uint8_t bitarray[] = {0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80};
   GLCD.GotoXY(x, y);
@@ -135,31 +162,5 @@ void clearScreenFunc() {
   clearScreen = false;
 }
 
-void setBrush(int BrushType = 0) {
-  if (BrushType == 0) {
-    GLCD.SetDot(x, y, BLACK);
-    GLCD.SetDot(x + 1, y, BLACK);
-    GLCD.SetDot(x - 1, y, BLACK);
-    GLCD.SetDot(x, y + 1, BLACK);
-    GLCD.SetDot(x, y - 1, BLACK);
-    return;
-  }
-  if (BrushType == 1) {
-    GLCD.SetDot(x, y, BLACK);
-    GLCD.SetDot(x + 1, y, BLACK);
-    GLCD.SetDot(x, y - 1, BLACK);
-    GLCD.SetDot(x + 1, y + 1, BLACK);
-    return;
-  }
-  for (int i = -1; i < 2; i++) {
-    for (int j = -1; j < 2; j++) {
-      GLCD.SetDot(x + i, y + j, BLACK);
-    }
-  }
-  GLCD.SetDot(x + 2, y, BLACK);
-  GLCD.SetDot(x - 2, y, BLACK);
-  GLCD.SetDot(x, y + 2, BLACK);
-  GLCD.SetDot(x, y - 2, BLACK);
-  return;
-}
+
 
