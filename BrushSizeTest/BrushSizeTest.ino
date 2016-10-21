@@ -26,7 +26,7 @@ void setup() {
   pinMode(SWPin, INPUT);
   digitalWrite(SWPin, HIGH);
   pinMode(ErasePin, INPUT);
-  
+
   attachInterrupt(digitalPinToInterrupt(SWPin), penLiftISR, FALLING);
   attachInterrupt(digitalPinToInterrupt(ErasePin), eraseModeISR, RISING);
   attachInterrupt(digitalPinToInterrupt(ClearPin), clearScreenISR, RISING);
@@ -74,12 +74,13 @@ void loop() {
   }
 
   //if (!penLift) {
-    //if (!eraseMode) {
-      GLCD.SetDot(x, y, BLACK);
-   // }
-    //else {
-    //  GLCD.SetDot(x, y, WHITE);
-   // }
+  //if (!eraseMode) {
+  brushType = 2;
+  setBrush(brushType);
+  // }
+  //else {
+  //  GLCD.SetDot(x, y, WHITE);
+  // }
   //}
 
   for (int i = -2; i < 3; i++) {
@@ -88,7 +89,7 @@ void loop() {
     }
   }
   Serial.println(brushType);
-  setBrush(2);
+  setcursor(brushType);
   if (clearScreen) clearScreenFunc();
 }
 
@@ -113,7 +114,7 @@ void brushSizeChangeISR() {
   }
 }
 
-int setBrush(int BrushType) {
+int setcursor(int BrushType) {
   if (BrushType == 0) {
     GLCD.SetDot(x, y, BLACK);
     GLCD.SetDot(x + 1, y, BLACK);
@@ -126,7 +127,7 @@ int setBrush(int BrushType) {
     GLCD.SetDot(x, y, BLACK);
     GLCD.SetDot(x + 1, y, BLACK);
     GLCD.SetDot(x, y - 1, BLACK);
-    GLCD.SetDot(x+1, y - 1, BLACK);
+    GLCD.SetDot(x + 1, y - 1, BLACK);
     return 0;
   }
   for (int i = -1; i < 2; i++) {
@@ -162,5 +163,21 @@ void clearScreenFunc() {
   clearScreen = false;
 }
 
-
-
+void setBrush(int BrushType) {
+  if (BrushType == 0) {
+    GLCD.SetDot(x, y, BLACK);
+    return;
+  }
+  if (BrushType == 1) {
+    GLCD.SetDot(x, y, BLACK);
+    GLCD.SetDot(x + 1, y, BLACK);
+    GLCD.SetDot(x, y - 1, BLACK);
+    GLCD.SetDot(x + 1, y - 1, BLACK);
+    return;
+  }
+  for (int i = -1; i < 2; i++) {
+    for (int j = -1; j < 2; j++) {
+        GLCD.SetDot(x + i, y + j, BLACK);
+      }
+  }
+}
