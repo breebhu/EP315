@@ -15,6 +15,12 @@ volatile bool penLift = false;
 volatile bool eraseMode = false;
 volatile bool clearScreen = false;
 volatile int brushType = 0;
+
+volatile int penLiftLast = 0;
+volatile int eraseModeLast = 0;
+volatile int clearScreenLast = 0;
+volatile int brushTypeLast = 0;
+int debounceTime = 1000;
 // variable to read the value from the analog pin 1
 int x, y;
 int real_image[5][5] = {0};
@@ -26,7 +32,7 @@ void setup() {
   pinMode(SWPin, INPUT);
   digitalWrite(SWPin, HIGH);
   pinMode(ErasePin, INPUT);
-  
+
   attachInterrupt(digitalPinToInterrupt(SWPin), penLiftISR, FALLING);
   attachInterrupt(digitalPinToInterrupt(ErasePin), eraseModeISR, RISING);
   attachInterrupt(digitalPinToInterrupt(ClearPin), clearScreenISR, RISING);
@@ -36,6 +42,7 @@ void setup() {
   real_image[1][1] = 1;
   GLCD.ClearScreen();
   GLCD.CursorTo(x, y);
+
   Serial.begin(9600);
 }
 
@@ -73,12 +80,13 @@ void loop() {
   }
 
   //if (!penLift) {
-    //if (!eraseMode) {
-      GLCD.SetDot(x, y, BLACK);
-   // }
-    //else {
-    //  GLCD.SetDot(x, y, WHITE);
-   // }
+  //if (!eraseMode) {
+  //brushType = digitalRead(BrushSizeChangePin);
+  setBrush(brushType);
+  // }
+  //else {
+  //  GLCD.SetDot(x, y, WHITE);
+  // }
   //}
 
   for (int i = -2; i < 3; i++) {
@@ -87,32 +95,47 @@ void loop() {
     }
   }
   Serial.println(brushType);
-  setBrush(2);
+  setcursor(brushType);
   if (clearScreen) clearScreenFunc();
 }
 
 void penLiftISR() {
+  if (millis() - penLiftLast < debounceTime) {
+    return;
+  }
   penLift = !(penLift);
+  penLiftLast = millis();
 }
 
 void eraseModeISR() {
+  if (millis() - eraseModeLast < debounceTime) {
+    return;
+  }
   eraseMode = !(eraseMode);
+  eraseModeLast = millis();
 }
 
 void clearScreenISR() {
+  if (millis() - clearScreenLast < debounceTime) {
+    return;
+  }
   clearScreen = true;
+  clearScreenLast = millis();
 }
 
 void brushSizeChangeISR() {
-  if (brushType < 2) {
-    brushType++;
-  }
-  else {
-    brushType = 0;
+  if (millis() - brushTypeLast > debounceTime) {
+    if (brushType < 2) {
+      brushType++;
+    }
+    else {
+      brushType = 0;
+    }
+    brushTypeLast = millis();
   }
 }
 
-int setBrush(int BrushType) {
+int setcursor(int BrushType) {
   if (BrushType == 0) {
     GLCD.SetDot(x, y, BLACK);
     GLCD.SetDot(x + 1, y, BLACK);
@@ -125,7 +148,7 @@ int setBrush(int BrushType) {
     GLCD.SetDot(x, y, BLACK);
     GLCD.SetDot(x + 1, y, BLACK);
     GLCD.SetDot(x, y - 1, BLACK);
-    GLCD.SetDot(x+1, y - 1, BLACK);
+    GLCD.SetDot(x + 1, y - 1, BLACK);
     return 0;
   }
   for (int i = -1; i < 2; i++) {
@@ -161,5 +184,21 @@ void clearScreenFunc() {
   clearScreen = false;
 }
 
-
-
+void setBrush(int BrushType) {
+  if (BrushType == 0) {
+    GLCD.SetDot(x, y, BLACK);
+    return;
+  }
+  if (BrushType == 1) {
+    GLCD.SetDot(x, y, BLACK);
+    GLCD.SetDot(x + 1, y, BLACK);
+    GLCD.SetDot(x, y - 1, BLACK);
+    GLCD.SetDot(x + 1, y - 1, BLACK);
+    return;
+  }
+  for (int i = -1; i < 2; i++) {
+    for (int j = -1; j < 2; j++) {
+      GLCD.SetDot(x + i, y + j, BLACK);
+    }
+  }
+}
