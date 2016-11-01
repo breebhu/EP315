@@ -36,7 +36,6 @@ void setup() {
   real_image[1][1] = 1;
   GLCD.ClearScreen();
   GLCD.CursorTo(x, y);
-
   Serial.begin(9600);
 }
 
