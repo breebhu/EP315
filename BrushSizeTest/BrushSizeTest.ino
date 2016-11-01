@@ -20,7 +20,7 @@ volatile int penLiftLast = 0;
 volatile int eraseModeLast = 0;
 volatile int clearScreenLast = 0;
 volatile int brushTypeLast = 0;
-int debounceTime = 100;
+int debounceTime = 1000;
 // variable to read the value from the analog pin 1
 int x, y;
 int real_image[5][5] = {0};
@@ -104,6 +104,7 @@ void penLiftISR() {
     return;
   }
   penLift = !(penLift);
+  penLiftLast = millis();
 }
 
 void eraseModeISR() {
@@ -111,6 +112,7 @@ void eraseModeISR() {
     return;
   }
   eraseMode = !(eraseMode);
+  eraseModeLast = millis();
 }
 
 void clearScreenISR() {
@@ -118,17 +120,18 @@ void clearScreenISR() {
     return;
   }
   clearScreen = true;
+  clearScreenLast = millis();
 }
 
 void brushSizeChangeISR() {
-  if (millis() - brushTypeLast < debounceTime) {
-    return;
-  }
-  if (brushType < 2) {
-    brushType++;
-  }
-  else {
-    brushType = 0;
+  if (millis() - brushTypeLast > debounceTime) {
+    if (brushType < 2) {
+      brushType++;
+    }
+    else {
+      brushType = 0;
+    }
+    brushTypeLast = millis();
   }
 }
 
