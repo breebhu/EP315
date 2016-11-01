@@ -15,6 +15,12 @@ volatile bool penLift = false;
 volatile bool eraseMode = false;
 volatile bool clearScreen = false;
 volatile int brushType = 0;
+
+volatile int penLiftLast = 0;
+volatile int eraseModeLast = 0;
+volatile int clearScreenLast = 0;
+volatile int brushTypeLast = 0;
+int debounceTime = 100;
 // variable to read the value from the analog pin 1
 int x, y;
 int real_image[5][5] = {0};
@@ -75,7 +81,7 @@ void loop() {
 
   //if (!penLift) {
   //if (!eraseMode) {
-  brushType = 2;
+  //brushType = digitalRead(BrushSizeChangePin);
   setBrush(brushType);
   // }
   //else {
@@ -94,18 +100,30 @@ void loop() {
 }
 
 void penLiftISR() {
+  if (millis() - penLiftLast < debounceTime) {
+    return;
+  }
   penLift = !(penLift);
 }
 
 void eraseModeISR() {
+  if (millis() - eraseModeLast < debounceTime) {
+    return;
+  }
   eraseMode = !(eraseMode);
 }
 
 void clearScreenISR() {
+  if (millis() - clearScreenLast < debounceTime) {
+    return;
+  }
   clearScreen = true;
 }
 
 void brushSizeChangeISR() {
+  if (millis() - brushTypeLast < debounceTime) {
+    return;
+  }
   if (brushType < 2) {
     brushType++;
   }
@@ -177,7 +195,7 @@ void setBrush(int BrushType) {
   }
   for (int i = -1; i < 2; i++) {
     for (int j = -1; j < 2; j++) {
-        GLCD.SetDot(x + i, y + j, BLACK);
-      }
+      GLCD.SetDot(x + i, y + j, BLACK);
+    }
   }
 }
