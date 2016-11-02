@@ -115,9 +115,9 @@ void loop() {
   if (rectMode) //check if currently user is in rectangle mode
   {
     lcd.setCursor(0, 0);
-    lcd.print("Brush Size: 1x1");
+    lcd.print("Brush Size: 1x1 ");
     lcd.setCursor(0, 1);
-    lcd.print("Mode: Rectangle");
+    lcd.print("Mode: Rectangle ");
     for (int i = 0; i < curveCount; i++) //print real image corresponding to points of the previous (temporary) rectangle
     {
       int x0 = Cx[i];
@@ -197,9 +197,9 @@ void loop() {
   else if (circMode) //check if currently user is in circle mode
   {
     lcd.setCursor(0, 0);
-    lcd.print("Brush Size: 1x1");
+    lcd.print("Brush Size: 1x1 ");
     lcd.setCursor(0, 1);
-    lcd.print("Mode: Circle");
+    lcd.print("Mode: Circle   ");
     for (int i = 0; i < LCount; i++) //print real image corresponding to points of the previous (temporary) radius
     {
       int x0 = Lx[i] % 128;
@@ -281,12 +281,25 @@ void loop() {
   }
   //If the user is not in one of the "special" Modes
   else if (!penLift) {//Pen is Down on Canvas
-    if (!eraseMode) {//User is not erasing - Erase Mode allows only one Brush Size
-      setBrush(brushType, brushSizeChangeTime); //Set the brush Size for Painting
+    if (!eraseMode) {
+      setBrush(brushType, brushSizeChangeTime, BLACK); //Set the brush Size for Painting
+      //LCD updated for current Brush Size
+      lcd.setCursor(0, 0);
+      if (brushType == 0) {
+        lcd.print("Brush Size: 1x1 ");
+      }
+      if (brushType == 1) {
+        lcd.print("Brush Size: 2x2 ");
+      }
+      if (brushType == 2) {
+        lcd.print("Brush Size: 3x3 ");
+      }
+      lcd.setCursor(0,1);
+      lcd.print("Mode : Default   ");
     }
     else {
-      GLCD.SetDot(x, y, WHITE);//Erasing
-
+      setBrush(brushType, brushSizeChangeTime, WHITE); //Set the brush Size for Erasing
+      
       //LCD updated to show Erase mode
       lcd.setCursor(0, 0);
       lcd.print("Brush Size: 1x1 ");
@@ -459,40 +472,29 @@ void clearScreenFunc() {
 }
 
 //Setting Brush size with designated waiting period for confirming decision
-void setBrush(int BrushType, long waitPeriod) {
- // while (true) {
-    long start =  millis();
-    if (BrushType == 0) {
-      GLCD.SetDot(x, y, BLACK);
-      return;
-    }
-    if (BrushType == 1) {
-      GLCD.SetDot(x, y, BLACK);
-      GLCD.SetDot(x + 1, y, BLACK);
-      GLCD.SetDot(x, y - 1, BLACK);
-      GLCD.SetDot(x + 1, y - 1, BLACK);
-      return;
-    }
-    for (int i = -1; i < 2; i++) {
-      for (int j = -1; j < 2; j++) {
-        GLCD.SetDot(x + i, y + j, BLACK);
-      }
-    }
-   // while (millis() - start < waitPeriod) {}
-   // if (brushType == BrushType) break;
-   // else BrushType = brushType;
-  //}
-  //LCD updated for current Brush Size
-  lcd.setCursor(0, 0);
+void setBrush(int BrushType, long waitPeriod, int color) {
+  // while (true) {
+  long start =  millis();
   if (BrushType == 0) {
-    lcd.print("Brush Size: 1x1 ");
+    GLCD.SetDot(x, y, color);
+    return;
   }
   if (BrushType == 1) {
-    lcd.print("Brush Size: 2x2 ");
+    GLCD.SetDot(x, y, color);
+    GLCD.SetDot(x + 1, y, color);
+    GLCD.SetDot(x, y - 1, color);
+    GLCD.SetDot(x + 1, y - 1, color);
+    return;
   }
-  if (BrushType == 2) {
-    lcd.print("Brush Size: 3x3 ");
+  for (int i = -1; i < 2; i++) {
+    for (int j = -1; j < 2; j++) {
+      GLCD.SetDot(x + i, y + j, color);
+    }
   }
+  // while (millis() - start < waitPeriod) {}
+  // if (brushType == BrushType) break;
+  // else BrushType = brushType;
+  //}
 }
 
 int absDiff(int a, int b)
