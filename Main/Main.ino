@@ -1,5 +1,8 @@
 #include<openGLCD.h>
+#include<LiquidCrystal.h>
 #include<math.h>
+
+LiquidCrystal lcd(38, 39, 40, 42, 44, 46);
 
 uint8_t Lx[128] = {0}; //stores x position of line
 uint8_t Ly[128] = {0}; //stores y position of line
@@ -57,6 +60,7 @@ volatile long lastCircMode = 0;
 const long debounceTime = 1000;
 const int thresholdL = 100;
 const int thresholdH = 900;
+const long brushSizeChangeTime = 2000;
 
 int real_image[5][5] = {0};
 
@@ -152,24 +156,24 @@ void loop() {
       //calculate width and height for drawing the (current) rectangle
       int w = absDiff(rx1, rx2) + 1 ;
       int h = absDiff(ry1, ry2) + 1;
-      
+
       //depending on which is upper left corner, store the rectangle points in the array
-      
+
       if (rx2 == rx1)
       {
         if (ry2 >= ry1)storeRectArray(rx1, ry1, w, h);
         else storeRectArray(rx1, ry2, w, h);
-      }      
+      }
       else if (ry2 == ry1)
       {
         if (rx2 >= rx1)storeRectArray(rx1, ry1, w, h);
         else storeRectArray(rx2, ry1, w, h);
-      }      
+      }
       else if (rx2 > rx1 && ry2 > ry1)storeRectArray(rx1, ry1, w, h);
       else if (rx2 < rx1 && ry2 > ry1)storeRectArray(rx2, ry1, w, h);
       else if (rx2 > rx1 && ry2 < ry1)storeRectArray(rx1, ry2, w, h);
       else if (rx2 < rx1 && ry2 < ry1)storeRectArray(rx2, ry2, w, h);
-      
+
       //store the real image at this point of time corresponding to rectangle points
       for (int i = 0; i < curveCount; i++)
       {
@@ -244,10 +248,10 @@ void loop() {
       int rad = (int)(sqrt(w * w + h * h));
 
       //store coordinates of points on circle and radius line
-      storeArray(rx1, ry1, rx2, ry2);
+      storeLineArray(rx1, ry1, rx2, ry2);
       storeCircArray(rx1, ry1, rad);
 
-      //store real image corresponding to circle and radius line   
+      //store real image corresponding to circle and radius line
       for (int i = 0; i < LCount; i++)
       {
         int x0 = Lx[i];
@@ -267,33 +271,40 @@ void loop() {
       drawCirc(rx1, ry1, rad);
     }
   }
-  else if (!penLift) {
-    if (!eraseMode) {
-      //brushType = digitalRead(BrushSizeChangePin);
-      setBrush(brushType);
+  //If the user is not in one of the "special" Modes
+  else if (!penLift) {//Pen is Down on Canvas
+    if (!eraseMode) {//User is not erasing - Erase Mode allows only one Brush Size
+      setBrush(brushType,brushSizeChangeTime);//Set the brush Size for Painting
     }
     else {
-      GLCD.SetDot(x, y, WHITE);
+      GLCD.SetDot(x, y, WHITE);//Erasing
     }
   }
 
+  //Store the real image so that the cursor can be put
   for (int i = -2; i < 3; i++) {
     for (int j = -2; j < 3; j++) {
       real_image[2 + j][2 + i] = ActualReadData((x + j) % 128, (y + i) % 64);
     }
   }
-  if (!(rectMode || circMode)) {
+
+  //Putting Cursor
+  if (!(rectMode || circMode)) {//Brush Size changes only if not in special modes
     setcursor(brushType);
   }
-  else {
+  else {//Smallest Brush Size in special Modes
     setcursor(0);
   }
+
+  //Command Clears screen
   if (clearScreen) clearScreenFunc();
   //  else {
   //    InitScreen(1000);
   //  }
 }
 
+//ISRs: Notify the Main program about inputs through boolean variables
+//Debouncing Implemented in Software
 void penLiftISR() {
   if (millis() - penLiftLast < debounceTime) {
     return;
@@ -330,6 +341,49 @@ void brushSizeChangeISR() {
   }
 }
 
+void RectPinISR()
+{
+  if (circMode) return;
+  if (millis() - lastRectMode > debounceTime)
+  {
+    if (rectMode)
+    {
+      nextRectMode = true;
+    }
+    else
+    {
+      rectMode = true;
+      nextRectMode = false;
+      prevRectMode = false;
+      LCount = -1;
+      curveCount = -1;
+    }
+    lastRectMode = millis();
+  }
+}
+
+void CircPinISR()
+{
+  if (rectMode) return;
+  if (millis() - lastCircMode > debounceTime)
+  {
+    if (circMode)
+    {
+      nextCircMode = true;
+    }
+    else
+    {
+      circMode = true;
+      nextCircMode = false;
+      prevCircMode = false;
+      LCount = -1;
+      curveCount = -1;
+    }
+    lastCircMode = millis();
+  }
+}
+
+//Sets the Cursor according to Brush Size
 int setcursor(int BrushType) {
   int color = BLACK;
   if (BrushType == 0) {
@@ -359,6 +413,7 @@ int setcursor(int BrushType) {
   return 0;
 }
 
+//Returns the pixel value at coordinate (x,y)
 int ActualReadData(int x, int y) {
   uint8_t bitarray[] = {0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80};
   GLCD.GotoXY(x, y);
@@ -367,7 +422,7 @@ int ActualReadData(int x, int y) {
   else return WHITE;
 }
 
-//indicate to next loop that the screen has been cleared and hence real image must be set to zero
+//Function to clear screen and reset back to initial state
 void clearScreenFunc() {
   for (int i = 0; i < 3; i++) {
     for (int j = 0; j < 3; j++) {
@@ -380,24 +435,32 @@ void clearScreenFunc() {
   GLCD.CursorTo(x, y);
   clearScreen = false;
   lastClearScreen = true;
+  //indicate to next loop that the screen has been cleared and hence real image must be set to zero
 }
 
-void setBrush(int BrushType) {
-  if (BrushType == 0) {
-    GLCD.SetDot(x, y, BLACK);
-    return;
-  }
-  if (BrushType == 1) {
-    GLCD.SetDot(x, y, BLACK);
-    GLCD.SetDot(x + 1, y, BLACK);
-    GLCD.SetDot(x, y - 1, BLACK);
-    GLCD.SetDot(x + 1, y - 1, BLACK);
-    return;
-  }
-  for (int i = -1; i < 2; i++) {
-    for (int j = -1; j < 2; j++) {
-      GLCD.SetDot(x + i, y + j, BLACK);
+//Setting Brush size with designated waiting period for confirming decision
+void setBrush(int BrushType, long waitPeriod) {
+  while (true) {
+    long start =  millis();
+    if (BrushType == 0) {
+      GLCD.SetDot(x, y, BLACK);
+      return;
     }
+    if (BrushType == 1) {
+      GLCD.SetDot(x, y, BLACK);
+      GLCD.SetDot(x + 1, y, BLACK);
+      GLCD.SetDot(x, y - 1, BLACK);
+      GLCD.SetDot(x + 1, y - 1, BLACK);
+      return;
+    }
+    for (int i = -1; i < 2; i++) {
+      for (int j = -1; j < 2; j++) {
+        GLCD.SetDot(x + i, y + j, BLACK);
+      }
+    }
+    while (millis() - start < waitPeriod) {}
+    if (brushType == BrushType) break;
+    else BrushType = brushType;
   }
 }
 
@@ -405,7 +468,9 @@ int absDiff(int a, int b)
 {
   return a > b ? a - b : b - a;
 }
-void storeArray(uint8_t x1, uint8_t y1, uint8_t x2, uint8_t y2)
+
+//Stores the coordinates of the line from (x1,y1) to (x2,y2)
+void storeLineArray(uint8_t x1, uint8_t y1, uint8_t x2, uint8_t y2)
 {
 
   LCount = 0;
@@ -470,47 +535,7 @@ void storeArray(uint8_t x1, uint8_t y1, uint8_t x2, uint8_t y2)
   }
 }
 
-void RectPinISR()
-{
-  if (circMode) return;
-  if (millis() - lastRectMode > debounceTime)
-  {
-    if (rectMode)
-    {
-      nextRectMode = true;
-    }
-    else
-    {
-      rectMode = true;
-      nextRectMode = false;
-      prevRectMode = false;
-      LCount = -1;
-      curveCount = -1;
-    }
-    lastRectMode = millis();
-  }
-}
-void CircPinISR()
-{
-  if (rectMode) return;
-  if (millis() - lastCircMode > debounceTime)
-  {
-    if (circMode)
-    {
-      nextCircMode = true;
-    }
-    else
-    {
-      circMode = true;
-      nextCircMode = false;
-      prevCircMode = false;
-      LCount = -1;
-      curveCount = -1;
-    }
-    lastCircMode = millis();
-  }
-}
-
+//Stores the coordinates of the circle with center - (centerX,centerY) and radius - radius
 void storeCircArray(int centreX, int centreY, int radius)
 {
   curveCount = 0;
@@ -596,6 +621,7 @@ void storeCircArray(int centreX, int centreY, int radius)
   }
 }
 
+//Stores the coordinates of the rectange with a point at (x0,y0) and of width w, height h
 void storeRectArray(int x0, int y0, int w, int h)
 {
   curveCount = 0;
@@ -625,6 +651,7 @@ void storeRectArray(int x0, int y0, int w, int h)
   }
 }
 
+//Draws circle with centre (centreX, centreY) and radius = radius
 void drawCirc(int centreX, int centreY, int radius)
 {
   int x2 = centreX - radius;
@@ -681,31 +708,34 @@ void drawCirc(int centreX, int centreY, int radius)
   }
 }
 
+//Initialises the LCDs and their Corresponding libraries
 void InitLCDs(long delaytime) {
   GLCD.Init();
-  //  lcd.begin(16,2);
+  lcd.begin(16, 2);
 
   InitScreen(delaytime);
 
   x = GLCD.CenterX; y = GLCD.CenterY;
   real_image[1][1] = 1;
   GLCD.ClearScreen();
-  //  lcd.clear();
+  lcd.clear();
 
-  //  lcd.print("BrushSize:  , Mode: ");
+  lcd.print("BrushSize: 0, Mode: Default");
   GLCD.CursorTo(x, y);
 }
 
+//Creates the Welcome Screen for specified time (same meaning of the argument in InitLCDs function)
 void InitScreen(long delaytime) {
   GLCD.DefineArea(textAreaTOP, TimesNewRoman16_bold);
   GLCD.DrawString("LCD Painter", gTextfmt_center, gTextfmt_center);
   GLCD.DefineArea(textAreaBOTTOM, Callibri10);
   GLCD.DrawString("Created by\n Reebhu Bhattacharyya\n Archit Bhatnagar", gTextfmt_left, gTextfmt_center);
-  //  lcd.setCursor(0,0);
-  //  lcd.print("Welcome, Let's Paint");
+  lcd.setCursor(0, 0);
+  lcd.print("Welcome, Let's Paint");
   delay(delaytime);
 }
 
+//Sets the modes of all the pins and attachs the interrupts
 void InitPins() {
   //pinMode(OnOffPin, INPUT);
   pinMode(PenLiftPin, INPUT);
@@ -717,4 +747,4 @@ void InitPins() {
   attachInterrupt(digitalPinToInterrupt(BrushSizeChangePin), brushSizeChangeISR, RISING);
   attachInterrupt(digitalPinToInterrupt(RectPin), RectPinISR, RISING);
   attachInterrupt(digitalPinToInterrupt(CircPin), CircPinISR, RISING);
-} 
+}
