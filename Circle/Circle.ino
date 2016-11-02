@@ -178,8 +178,8 @@ void loop() {
     }
     if (nextCircMode)
     {
-      int w = absDiff(rx1, rx2)+1;
-      int h = absDiff(ry1, ry2)+1;
+      int w = absDiff(rx1, rx2);
+      int h = absDiff(ry1, ry2);
       int rad=(int)(sqrt(w*w+h*h));
       GLCD.DrawCircle(rx1,ry1,rad);
       circMode = false;
