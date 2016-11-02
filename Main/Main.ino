@@ -1,52 +1,69 @@
 #include<openGLCD.h>
 #include<math.h>
 
-uint8_t Lx[128] = {0};
-uint8_t Ly[128] = {0};
+uint8_t Lx[128] = {0}; //stores x position of line
+uint8_t Ly[128] = {0}; //stores y position of line
 
-uint8_t Cx[1000] = {0};
-uint8_t Cy[1000] = {0};
+uint8_t Cx[1000] = {0}; //stores x position of curve:circle/rectangle
+uint8_t Cy[1000] = {0}; //stores y position of curve:circle/rectangle
 
-bool L[128] = {false};
-bool C[1000] = {false};
+bool L[128] = {false}; //stores real image at Lx,Ly co-ordinate
+bool C[1000] = {false};//stores real image at Cx,Cy co-ordinate
 
-volatile int LCount = -1;
-volatile int curveCount = -1;
-volatile bool rectMode = false, nextRectMode = false, prevRectMode = false;
-volatile bool circMode = false, nextCircMode = false, prevCircMode = false;
-bool isSteep = false;
-int joyPin1 = A5;                 // slider variable connecetd to analog pin 0
-int joyPin2 = A4;
-int PenLiftPin = 2;
-int ErasePin = 3;
-int ClearPin = 18;
-int BrushSizeChangePin = 19;
-int RectPin = 20;
-int CircPin = 21;
-//int OnOffPin = 4;
-// slider variable connecetd to analog pin 1
-int value1 = 0;                  // variable to read the value from the analog pin 0
-int value2 = 0;
+volatile int LCount = -1; //stores length of line drawn(more accurately,L+1), initially set to -1
+volatile int curveCount = -1; //stores length of curve drawn(more accurately,L+1), initially set to -1
+
+//mode variable declarations
+
 volatile bool penLift = false;
 volatile bool eraseMode = false;
 volatile bool clearScreen = false;
+volatile bool rectMode = false, nextRectMode = false, prevRectMode = false;
+//rectMode indicates if current mode is rectangle drawing mode
+//prevRectMode indicates if in the last loop it was RectMode, it being false indicates that user just entered rectMode and initial point has to be set
+//nextRectMode indicates whether in the next loop one has to exit rectangle mode after drawing rectangle
+
+volatile bool circMode = false, nextCircMode = false, prevCircMode = false; //same convention for circle as above for rectangle
+
+//pin declarations
+const int joyPin2 = A5;
+const int joyPin1 = A4;
+const int PenLiftPin = 2;
+const int ErasePin = 3;
+const int ClearPin = 18;
+const int BrushSizeChangePin = 19;
+const int RectPin = 20;
+const int CircPin = 21;
+//const int OnOffPin = 4;
+
+int value2 = 0; // variable to read the value from the joystick X pin
+int value1 = 0; // variable to read the value from the joystick Y pin
+
 bool lastClearScreen = false;
 volatile int brushType = 0;
-// variable to read the value from the analog pin 1
-int x, y;
-int rx1, rx2, ry1, ry2;
+
+int x, y; //stores current position of cursor
+
+int rx1, rx2, ry1, ry2; //stores position of intial and final position while in rectangle/circle mode
+
+//variables for purpose of debouncing, stores the previous time button was pressed
 volatile long penLiftLast = 0;
 volatile long eraseModeLast = 0;
 volatile long clearScreenLast = 0;
 volatile long brushTypeLast = 0;
-const long debounceTime = 1000;
-volatile long lastRectMode = 0; //
+volatile long lastRectMode = 0;
 volatile long lastCircMode = 0;
+
+const long debounceTime = 1000;
+const int thresholdL = 100;
+const int thresholdH = 900;
+
 int real_image[5][5] = {0};
 
-long initDelay = 5000;
+const int initDelay = 5000;
 
-void setup() {
+void setup()
+{
   InitPins();
   InitLCDs(initDelay);
 }
@@ -54,96 +71,114 @@ void setup() {
 void loop() {
   //  if (digitalRead(OnOffPin)) {
   delay(150);
-  value1 = analogRead(joyPin1);
+  value2 = analogRead(joyPin2); //read value of joyPin2
   delay(10);
-  value2 = analogRead(joyPin2);
-
-  if (!lastClearScreen) {
+  value1 = analogRead(joyPin1); //read value of joyPin1
+  if (!lastClearScreen) //since clear screen command was not given, print real image
+  {
     for (int i = -2; i < 3; i++) {
       for (int j = -2; j < 3; j++) {
         GLCD.SetDot(x + j, y + i, real_image[2 + j][2 + i]);
       }
     }
   }
-  else {
-    lastClearScreen = false;
+  else  //since the screen was cleared in last loop,don't print anything here
+  {
+    lastClearScreen = false; //now we have cleared the screen
   }
 
-  if (value2 > 900)
+  if (value1 > thresholdH) //check if user has moved joystick to right
   {
     x = x + 1;
-    if (x > 127)x = 0;
+    if (x > 127)x = 0;  //since screen width is 128, wrap around
   }
-  else if (value2 < 100)
+  else if (value1 < thresholdL) //check if user has moved joystick to left
   {
     x = x - 1;
-    if (x < 0)x = 127;
+    if (x < 0)x = 127; //since screen width is 128, wrap around
   }
-  if (value1 < 100)
+  if (value2 < thresholdL) //check if user has moved joystick up
   {
     y = y + 1;
-    if (y > 63)y = 0;
+    if (y > 63)y = 0; //since screen height is 64, wrap around
   }
-  else if (value1 > 900)
+  else if (value2 > thresholdH) //check if user has moved joystick up
   {
     y = y - 1;
-    if (y < 0)y = 63;
+    if (y < 0)y = 63; //since screen height is 64, wrap around
   }
 
-  if (rectMode)
+  if (rectMode) //check if currently user is in rectangle mode
   {
-    for (int i = 0; i < curveCount; i++)
+    for (int i = 0; i < curveCount; i++) //print real image corresponding to points of the previous (temporary) rectangle
     {
       int x0 = Cx[i];
       int y0 = Cy[i];
       if (C[i] == true) GLCD.SetDot(x0, y0, BLACK);
       else GLCD.SetDot(x0, y0, WHITE);
     }
-    if (nextRectMode)
+    if (nextRectMode) //check if user wants to draw the rectangle at current position and exit rectangle mode
     {
+      //find out height and width of rectangle from current cursor position
       int w = absDiff(rx1, rx2) + 1;
       int h = absDiff(ry1, ry2) + 1;
+
+      //check which coordinates correspond to top left corner of rectangle
       if (rx2 == rx1 || ry2 == ry1) GLCD.DrawLine(rx1, ry1, rx2, ry2);
       else if (rx2 > rx1 && ry2 > ry1)GLCD.DrawRect(rx1, ry1, w, h);
       else if (rx2 < rx1 && ry2 > ry1)GLCD.DrawRect(rx2, ry1, w, h);
       else if (rx2 > rx1 && ry2 < ry1)GLCD.DrawRect(rx1, ry2, w, h);
       else if (rx2 < rx1 && ry2 < ry1)GLCD.DrawRect(rx2, ry2, w, h);
+
+      //while exitig rectMode, adjust status variables accordingly
       rectMode = false;
       nextRectMode = false;
       prevRectMode = true;
     }
-    else
+    else  //user is still adjusting rectangle size
     {
-      if (prevRectMode == false)
+
+      if (prevRectMode == false) //while entering rectangle mode for first time, set current position as starting point
       {
         rx1 = x;
         ry1 = y;
         prevRectMode = true;
       }
+
+      //current position is ending point
       rx2 = x;
       ry2 = y;
+
+      //calculate width and height for drawing the (current) rectangle
       int w = absDiff(rx1, rx2) + 1 ;
       int h = absDiff(ry1, ry2) + 1;
+      
+      //depending on which is upper left corner, store the rectangle points in the array
+      
       if (rx2 == rx1)
       {
         if (ry2 >= ry1)storeRectArray(rx1, ry1, w, h);
         else storeRectArray(rx1, ry2, w, h);
-      }
+      }      
       else if (ry2 == ry1)
       {
         if (rx2 >= rx1)storeRectArray(rx1, ry1, w, h);
         else storeRectArray(rx2, ry1, w, h);
-      }
+      }      
       else if (rx2 > rx1 && ry2 > ry1)storeRectArray(rx1, ry1, w, h);
       else if (rx2 < rx1 && ry2 > ry1)storeRectArray(rx2, ry1, w, h);
       else if (rx2 > rx1 && ry2 < ry1)storeRectArray(rx1, ry2, w, h);
       else if (rx2 < rx1 && ry2 < ry1)storeRectArray(rx2, ry2, w, h);
+      
+      //store the real image at this point of time corresponding to rectangle points
       for (int i = 0; i < curveCount; i++)
       {
         int x0 = Cx[i];
         int y0 = Cy[i];
         if (ActualReadData(x0, y0) == BLACK) C[i] = true; else C[i] = false;
       }
+
+      //draw the rectangle
       if (rx2 == rx1 || ry2 == ry1) GLCD.DrawLine(rx1, ry1, rx2, ry2);
       else if (rx2 > rx1 && ry2 > ry1)GLCD.DrawRect(rx1, ry1, w, h);
       else if (rx2 < rx1 && ry2 > ry1)GLCD.DrawRect(rx2, ry1, w, h);
@@ -151,56 +186,68 @@ void loop() {
       else if (rx2 < rx1 && ry2 < ry1)GLCD.DrawRect(rx2, ry2, w, h);
     }
   }
-  else if (circMode)
+  else if (circMode) //check if currently user is in circle mode
   {
-
-    //print real image
-    for (int i = 0; i < LCount; i++)
+    for (int i = 0; i < LCount; i++) //print real image corresponding to points of the previous (temporary) radius
     {
       int x0 = Lx[i] % 128;
       int y0 = Ly[i] % 64;
       if (L[i] == true) GLCD.SetDot(x0, y0, BLACK);
       else GLCD.SetDot(x0, y0, WHITE);
     }
-    for (int i = 0; i < curveCount; i++)
+    for (int i = 0; i < curveCount; i++) ////print real image corresponding to points of the previous (temporary) circle
     {
       int x0 = Cx[i] % 128;
       int y0 = Cy[i] % 64;
       if (C[i] == true) GLCD.SetDot(x0, y0, BLACK);
       else GLCD.SetDot(x0, y0, WHITE);
     }
-    if (nextCircMode)
+    if (nextCircMode) //check if user wants to draw the circle at current position and exit circle mode
     {
+      //calculate radius of circle from current position of cursor
       int w = absDiff(rx1, rx2) + 1;
       int h = absDiff(ry1, ry2) + 1;
+
+      //if current position is same as starting point, draw a dot
       if (w == 1 && h == 1) GLCD.SetDot(rx1, ry1, BLACK);
       else
       {
         int rad = (int)(sqrt(w * w + h * h));
         drawCirc(rx1, ry1, rad);
       }
+
+      //reset cursor position to centre of circle
       x = rx1;
       y = ry1;
+
+      //adjust status variables before exiting circMode
       circMode = false;
       nextCircMode = false;
       prevCircMode = true;
     }
-    else
+    else //user is still adjusting circle size
     {
-      if (prevCircMode == false)
+      if (prevCircMode == false) //while entering circle mode for first time, set current position as starting point
       {
         rx1 = x;
         ry1 = y;
         prevCircMode = true;
       }
+
+      //set current position as ending point of radius line
       rx2 = x;
       ry2 = y;
+
+      //calculate radius from starting and ending points
       int w = absDiff(rx1, rx2) + 1;
       int h = absDiff(ry1, ry2) + 1;
       int rad = (int)(sqrt(w * w + h * h));
-      LCount = storeArray(rx1, ry1, rx2, ry2);
+
+      //store coordinates of points on circle and radius line
+      storeArray(rx1, ry1, rx2, ry2);
       storeCircArray(rx1, ry1, rad);
 
+      //store real image corresponding to circle and radius line   
       for (int i = 0; i < LCount; i++)
       {
         int x0 = Lx[i];
@@ -214,6 +261,8 @@ void loop() {
         int y0 = Cy[i] % 64;
         if (ActualReadData(x0, y0) == BLACK) C[i] = true; else C[i] = false;
       }
+
+      //draw circle and radius line
       GLCD.DrawLine(rx1, ry1, rx2, ry2);
       drawCirc(rx1, ry1, rad);
     }
@@ -240,10 +289,9 @@ void loop() {
     setcursor(0);
   }
   if (clearScreen) clearScreenFunc();
-}
-//  else {
-//    InitScreen(1000);
-//  }
+  //  else {
+  //    InitScreen(1000);
+  //  }
 }
 
 void penLiftISR() {
@@ -319,6 +367,7 @@ int ActualReadData(int x, int y) {
   else return WHITE;
 }
 
+//indicate to next loop that the screen has been cleared and hence real image must be set to zero
 void clearScreenFunc() {
   for (int i = 0; i < 3; i++) {
     for (int j = 0; j < 3; j++) {
@@ -356,11 +405,10 @@ int absDiff(int a, int b)
 {
   return a > b ? a - b : b - a;
 }
-
-int storeArray(uint8_t x1, uint8_t y1, uint8_t x2, uint8_t y2)
+void storeArray(uint8_t x1, uint8_t y1, uint8_t x2, uint8_t y2)
 {
 
-  int lCount = 0;
+  LCount = 0;
   uint8_t deltax, deltay, X, Y, steep;
   int8_t error, ystep;
   if (x1 >= 128) x1 = x1 % 128;
@@ -404,15 +452,15 @@ int storeArray(uint8_t x1, uint8_t y1, uint8_t x2, uint8_t y2)
   {
     if (steep)
     {
-      Lx[lCount] = Y;
-      Ly[lCount] = X;
+      Lx[LCount] = Y;
+      Ly[LCount] = X;
     }
     else
     {
-      Lx[lCount] = X;
-      Ly[lCount] = Y;
+      Lx[LCount] = X;
+      Ly[LCount] = Y;
     }
-    lCount = lCount + 1;
+    LCount = LCount + 1;
     error = error - deltay;
     if (error < 0)
     {
@@ -420,7 +468,6 @@ int storeArray(uint8_t x1, uint8_t y1, uint8_t x2, uint8_t y2)
       error = error + deltax;
     }
   }
-  return lCount;
 }
 
 void RectPinISR()
@@ -670,4 +717,4 @@ void InitPins() {
   attachInterrupt(digitalPinToInterrupt(BrushSizeChangePin), brushSizeChangeISR, RISING);
   attachInterrupt(digitalPinToInterrupt(RectPin), RectPinISR, RISING);
   attachInterrupt(digitalPinToInterrupt(CircPin), CircPinISR, RISING);
-}
+} 
