@@ -201,8 +201,4 @@ void setBrush(int BrushType) {
       GLCD.SetDot(x + i, y + j, BLACK);
     }
   }
-<<<<<<< HEAD
 }
-=======
-}
->>>>>>> fdd77110a500728f13bab267a3a644b7ab2814bb

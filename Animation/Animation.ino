@@ -1,10 +1,15 @@
 #include<openGLCD.h>
 uint8_t Lx[128] = {0};
 uint8_t Ly[128] = {0};
-bool L1[128] = {false};
-bool L2[128] = {false};
-bool L3[128] = {false};
-int LCount = 0;
+
+uint8_t Cx[390] = {0};
+uint8_t Cy[390] = {0};
+
+bool L[128] = {false};
+bool C[390] = {false};
+
+volatile int LCount = -1;
+volatile int curveCount = -1;
 volatile bool rectMode = false, nextRectMode = false, prevRectMode = false;
 volatile bool circMode = false, nextCircMode = false, prevCircMode = false;
 bool isSteep = false;
@@ -15,7 +20,7 @@ int ErasePin = 3;
 int ClearPin = 18;
 int BrushSizeChangePin = 2;
 int RectPin = 20;
-int CircPin=21;
+int CircPin = 21;
 // slider variable connecetd to analog pin 1
 int value1 = 0;                  // variable to read the value from the analog pin 0
 int value2 = 0;
@@ -28,7 +33,7 @@ int x, y;
 int rx1, rx2, ry1, ry2;
 const int debounceTime = 1000;
 volatile long lastRectMode = 0; //
-volatile long lastCircMode=0;
+volatile long lastCircMode = 0;
 int real_image[5][5] = {0};
 void setup() {
   GLCD.Init();
@@ -37,13 +42,13 @@ void setup() {
   pinMode(SWPin, INPUT);
   digitalWrite(SWPin, HIGH);
   pinMode(ErasePin, INPUT);
-  
+
   // attachInterrupt(digitalPinToInterrupt(SWPin), penLiftISR, FALLING);
   //attachInterrupt(digitalPinToInterrupt(ErasePin), eraseModeISR, RISING);
   //attachInterrupt(digitalPinToInterrupt(ClearPin), clearScreenISR, RISING);
   //attachInterrupt(digitalPinToInterrupt(BrushSizeChangePin), brushSizeChangeISR, RISING);
   attachInterrupt(digitalPinToInterrupt(RectPin), RectPinISR, RISING);
-  attachInterrupt(digitalPinToInterrupt(CircPin),CircPinISR,RISING);
+  attachInterrupt(digitalPinToInterrupt(CircPin), CircPinISR, RISING);
   x = GLCD.CenterX; y = GLCD.CenterY;
   real_image[1][1] = 1;
   GLCD.ClearScreen();
@@ -79,37 +84,28 @@ void loop() {
     if (y < 0)y = 63;
   }
   // put your main code here, to run repeatedly:
-  Serial.print(rectMode);
-  Serial.print(" ");
-  Serial.println(nextRectMode);
-  Serial.print(digitalRead(20));
-  Serial.print(":");
-  Serial.println(millis());
+  //  Serial.print(rectMode);
+  //  Serial.print(" ");
+  //  Serial.println(nextRectMode);
+  //  Serial.print(digitalRead(20));
+  //  Serial.print(":");
+  //  Serial.println(millis());
   if (rectMode)
   {
     //print real image
-    for (int i = 0; i < LCount; i++)
+    //    for (int i = 0; i < LCount; i++)
+    //    {
+    //      int x0 = Lx[i];
+    //      int y0 = Ly[i];
+    //      if (L[i] == true) GLCD.SetDot(x0, y0, BLACK);
+    //      else GLCD.SetDot(x0, y0, WHITE);
+    //    }
+    for (int i = 0; i < curveCount; i++)
     {
-      int x0 = Lx[i];
-      int y0 = Ly[i];
-      if (L2[i] == true) GLCD.SetDot(x0, y0, BLACK);
+      int x0 = Cx[i];
+      int y0 = Cy[i];
+      if (C[i] == true) GLCD.SetDot(x0, y0, BLACK);
       else GLCD.SetDot(x0, y0, WHITE);
-      //      if(isSteep)
-      //      {
-      //        //Serial.println("Entered steep:");
-      //        x0=(Lx[i]-1)%128;
-      //        if(L1[i]==true) GLCD.SetDot(x0,y0,BLACK);
-      //        x0=(Lx[i]+1)%128;
-      //        if(L3[i]==true) GLCD.SetDot(x0,y0,BLACK);
-      //      }
-      //      else
-      //      {
-      //        //Serial.println("Entered:");
-      //        y0=(Ly[i]-1)%64;
-      //        if(L1[i]==true) GLCD.SetDot(x0,y0,BLACK);
-      //        y0=(Ly[i]+1)%64;
-      //        if(L3[i]==true) GLCD.SetDot(x0,y0,BLACK);
-      //      }
     }
     if (nextRectMode)
     {
@@ -134,54 +130,76 @@ void loop() {
       }
       rx2 = x;
       ry2 = y;
-      //storeArray
-      //Serial.print("Entered:");
-      //Serial.println(LCount);
-      LCount = storeArray(rx1, ry1, rx2, ry2);
-      //      isSteep=absDiff(ry2,ry1)>absDiff(rx2,rx1);
-      for (int i = 0; i < LCount; i++)
+      int w = absDiff(rx1, rx2) + 1 ;
+      int h = absDiff(ry1, ry2) + 1;
+      if (rx2 == rx1)
       {
-        int x0 = Lx[i];
-        int y0 = Ly[i];
-        if (ActualReadData(x0, y0) == BLACK) L2[i] = true; else L2[i] = false;
-        //        if(isSteep)
-        //        {
-        //          x0=(Lx[i]-1)%128;
-        //          y0=Ly[i];
-        //          if(ActualReadData(x0,y0)==BLACK) L1[i]=true; else L1[i]=false;
-        //          x0=(Lx[i]+1)%128;
-        //          y0=Ly[i];
-        //          if(ActualReadData(x0,y0)==BLACK) L3[i]=true; else L3[i]=false;
-        //        }
-        //        else
-        //        {
-        //          x0=Lx[i];
-        //          y0=(Ly[i]-1)%64;
-        //          if(ActualReadData(x0,y0)==BLACK) L1[i]=true; else L1[i]=false;
-        //          x0=Lx[i];
-        //          y0=(Ly[i]+1)%64;
-        //          if(ActualReadData(x0,y0)==BLACK) L3[i]=true; else L3[i]=false;
-        //        }
+        if (ry2 >= ry1)storeRectArray(rx1, ry1, w, h);
+        else storeRectArray(rx1, ry2, w, h);
       }
-      GLCD.DrawLine(rx1, ry1, rx2, ry2);
+      else if (ry2 == ry1)
+      {
+        if (rx2 >= rx1)storeRectArray(rx1, ry1, w, h);
+        else storeRectArray(rx2, ry1, w, h);
+      }
+      else if (rx2 > rx1 && ry2 > ry1)storeRectArray(rx1, ry1, w, h);
+      else if (rx2 < rx1 && ry2 > ry1)storeRectArray(rx2, ry1, w, h);
+      else if (rx2 > rx1 && ry2 < ry1)storeRectArray(rx1, ry2, w, h);
+      else if (rx2 < rx1 && ry2 < ry1)storeRectArray(rx2, ry2, w, h);
+      //      LCount = storeArray(rx1, ry1, rx2, ry2);
+      //      for (int i = 0; i < LCount; i++)
+      //      {
+      //        int x0 = Lx[i];
+      //        int y0 = Ly[i];
+      //        if (ActualReadData(x0, y0) == BLACK) L[i] = true; else L[i] = false;
+      //      }
+      for (int i = 0; i < curveCount; i++)
+      {
+        int x0 = Cx[i];
+        int y0 = Cy[i];
+        if (ActualReadData(x0, y0) == BLACK) C[i] = true; else C[i] = false;
+      }
+      //      GLCD.DrawLine(rx1, ry1, rx2, ry2);
+      if (rx2 == rx1 || ry2 == ry1) GLCD.DrawLine(rx1, ry1, rx2, ry2);
+      else if (rx2 > rx1 && ry2 > ry1)GLCD.DrawRect(rx1, ry1, w, h);
+      else if (rx2 < rx1 && ry2 > ry1)GLCD.DrawRect(rx2, ry1, w, h);
+      else if (rx2 > rx1 && ry2 < ry1)GLCD.DrawRect(rx1, ry2, w, h);
+      else if (rx2 < rx1 && ry2 < ry1)GLCD.DrawRect(rx2, ry2, w, h);
     }
   }
+  Serial.print(rectMode);
+  Serial.print(",");
+  Serial.println(circMode);
   if (circMode)
   {
+
     //print real image
     for (int i = 0; i < LCount; i++)
     {
-      int x0 = Lx[i];
-      int y0 = Ly[i];
-      if (L2[i] == true) GLCD.SetDot(x0, y0, BLACK);
+      int x0 = Lx[i] % 128;
+      int y0 = Ly[i] % 64;
+      if (L[i] == true) GLCD.SetDot(x0, y0, BLACK);
+      else GLCD.SetDot(x0, y0, WHITE);
+    }
+    for (int i = 0; i < curveCount; i++)
+    {
+      int x0 = Cx[i] % 128;
+      int y0 = Cy[i] % 64;
+      if (C[i] == true) GLCD.SetDot(x0, y0, BLACK);
       else GLCD.SetDot(x0, y0, WHITE);
     }
     if (nextCircMode)
     {
-      int w = absDiff(rx1, rx2)+1;
-      int h = absDiff(ry1, ry2)+1;
-      int rad=(int)(sqrt(w*w+h*h));
-      GLCD.DrawCircle(rx1,ry1,rad);
+      int w = absDiff(rx1, rx2) + 1;
+      int h = absDiff(ry1, ry2) + 1;
+      if (w == 1 && h == 1) GLCD.SetDot(rx1, ry1, BLACK);
+      else
+      {
+        int rad = (int)(sqrt(w * w + h * h));
+        drawCirc(rx1, ry1, rad);
+      }
+      x = rx1;
+      y = ry1;
       circMode = false;
       nextCircMode = false;
       prevCircMode = true;
@@ -196,14 +214,27 @@ void loop() {
       }
       rx2 = x;
       ry2 = y;
+      int w = absDiff(rx1, rx2) + 1;
+      int h = absDiff(ry1, ry2) + 1;
+      int rad = (int)(sqrt(w * w + h * h));
       LCount = storeArray(rx1, ry1, rx2, ry2);
+      storeCircArray(rx1, ry1, rad);
+
       for (int i = 0; i < LCount; i++)
       {
         int x0 = Lx[i];
         int y0 = Ly[i];
-        if (ActualReadData(x0, y0) == BLACK) L2[i] = true; else L2[i] = false;
+        if (ActualReadData(x0, y0) == BLACK) L[i] = true; else L[i] = false;
+      }
+
+      for (int i = 0; i < curveCount; i++)
+      {
+        int x0 = Cx[i] % 128;
+        int y0 = Cy[i] % 64;
+        if (ActualReadData(x0, y0) == BLACK) C[i] = true; else C[i] = false;
       }
       GLCD.DrawLine(rx1, ry1, rx2, ry2);
+      drawCirc(rx1, ry1, rad);
     }
   }
 }
@@ -290,12 +321,13 @@ int storeArray(uint8_t x1, uint8_t y1, uint8_t x2, uint8_t y2)
 
 void RectPinISR()
 {
+  if (circMode) return;
   if (millis() - lastRectMode > debounceTime)
   {
-    Serial.print("ISR:");
-    Serial.print(millis());
-    Serial.print(",");
-    Serial.println(lastRectMode);
+    //    Serial.print("ISR:");
+    //    Serial.print(millis());
+    //    Serial.print(",");
+    //    Serial.println(lastRectMode);
     if (rectMode)
     {
       nextRectMode = true;
@@ -305,18 +337,21 @@ void RectPinISR()
       rectMode = true;
       nextRectMode = false;
       prevRectMode = false;
+      LCount = -1;
+      curveCount = -1;
     }
     lastRectMode = millis();
   }
 }
 void CircPinISR()
 {
+  if (rectMode) return;
   if (millis() - lastCircMode > debounceTime)
   {
-    Serial.print("ISR:");
-    Serial.print(millis());
-    Serial.print(",");
-    Serial.println(lastCircMode);
+    //    Serial.print("ISR:");
+    //    Serial.print(millis());
+    //    Serial.print(",");
+    //    Serial.println(lastCircMode);
     if (circMode)
     {
       nextCircMode = true;
@@ -326,6 +361,8 @@ void CircPinISR()
       circMode = true;
       nextCircMode = false;
       prevCircMode = false;
+      LCount = -1;
+      curveCount = -1;
     }
     lastCircMode = millis();
   }
@@ -338,14 +375,176 @@ int ActualReadData(int x, int y) {
   if (data & bitarray[y % 8]) return BLACK;
   else return WHITE;
 }
-
-void storeCircArray()
+//DrawRoundRect(uint8_t x, uint8_t y, uint8_t width, uint8_t height, uint8_t radius, uint8_t color)
+//DrawCircle(uint8_ts xCenter, uint8_t yCenter, uint8_t radius, uint8_t color)
+//DrawRoundRect(xCenter-radius, yCenter-radius, 2*radius+1, 2*radius+1, radius, color);
+void storeCircArray(int centreX, int centreY, int radius)
 {
-  
+  curveCount = 0;
+  int x2 = centreX - radius;
+  int y2 = centreY - radius;
+  int h = 2 * radius + 1;
+  int w = 2 * radius + 1;
+  int16_t tSwitch;
+  uint8_t x1 = 0, y1 = radius;
+  tSwitch = 3 - 2 * radius;
+
+  while (x1 <= y1)
+  {
+    // upper left corner
+    Cx[curveCount] = x2 + radius - x1;
+    Cy[curveCount] = y2 + radius - y1;
+    curveCount++;
+
+    Cx[curveCount] = x2 + radius - y1;
+    Cy[curveCount] = y2 + radius - x1;
+    curveCount++;
+
+    // upper right corner
+    Cx[curveCount] = x2 + w - radius - 1 + x1;
+    Cy[curveCount] = y2 + radius - y1;
+    curveCount++;
+
+    Cx[curveCount] = x2 + w - radius - 1 + y1;
+    Cy[curveCount] = y2 + radius - x1;
+    curveCount++;
+
+    // lower right corner
+    Cx[curveCount] = x2 + w - radius - 1 + x1;
+    Cy[curveCount] = y2 + h - radius - 1 + y1;
+    curveCount++;
+
+    Cx[curveCount] = x2 + w - radius - 1 + y1;
+    Cy[curveCount] = y2 + h - radius - 1 + x1;
+    curveCount++;
+
+    // lower left corner
+    Cx[curveCount] = x2 + radius - x1;
+    Cy[curveCount] = y2 + h - radius - 1 + y1;
+    curveCount++;
+
+    Cx[curveCount] = x2 + radius - y1;
+    Cy[curveCount] = y2 + h - radius - 1 + x1;
+    curveCount++;
+    if (tSwitch < 0)
+    {
+      tSwitch += (4 * x1 + 6);
+    }
+    else
+    {
+      tSwitch += (4 * (x1 - y1) + 10);
+      y1--;
+    }
+    x1++;
+  }
+  for (int i = 0; i < w - (2 * radius); i++)
+  {
+    Cx[curveCount] = x2 + radius + i;
+    Cy[curveCount] = y2;
+    curveCount++;
+  }
+  for (int i = 0; i < w - (2 * radius); i++)
+  {
+    Cx[curveCount] = x2 + radius + i;
+    Cy[curveCount] = y2 + h - 1;
+    curveCount++;
+  }
+  for (int i = 0; i < h - (2 * radius); i++)
+  {
+    Cx[curveCount] = x2;
+    Cy[curveCount] = y2 + radius + i;
+    curveCount++;
+  }
+  for (int i = 0; i < h - (2 * radius); i++)
+  {
+    Cx[curveCount] = x2 + w - 1;
+    Cy[curveCount] = y2 + radius + i;
+    curveCount++;
+  }
 }
 
-void storeRectArray()
+void storeRectArray(int x0, int y0, int w, int h)
 {
-  
+  curveCount = 0;
+  for (int i = 0; i < w; i++)
+  {
+    Cx[curveCount] = x0 + i;
+    Cy[curveCount] = y0;
+    curveCount++;
+  }
+  for (int i = 0; i < w; i++)
+  {
+    Cx[curveCount] = x0 + i;
+    Cy[curveCount] = y0 + h - 1;
+    curveCount++;
+  }
+  for (int i = 0; i < h; i++)
+  {
+    Cx[curveCount] = x0;
+    Cy[curveCount] = y0 + i;
+    curveCount++;
+  }
+  for (int i = 0; i < h; i++)
+  {
+    Cx[curveCount] = x0 + w - 1;
+    Cy[curveCount] = y0 + i;
+    curveCount++;
+  }
+}
+
+void drawCirc(int centreX, int centreY, int radius)
+{
+  int x2 = centreX - radius;
+  int y2 = centreY - radius;
+  int h = 2 * radius + 1;
+  int w = 2 * radius + 1;
+  int16_t tSwitch;
+  uint8_t x1 = 0, y1 = radius;
+  tSwitch = 3 - 2 * radius;
+
+  while (x1 <= y1)
+  {
+    // upper left corner
+    GLCD.SetDot(x2 + radius - x1, y2 + radius - y1, BLACK);
+    GLCD.SetDot(x2 + radius - y1, y2 + radius - x1, BLACK);
+
+    // upper right corner
+    GLCD.SetDot(x2 + w - radius - 1 + x1, y2 + radius - y1, BLACK);
+    GLCD.SetDot(x2 + w - radius - 1 + y1, y2 + radius - x1, BLACK);
+
+    // lower right corner
+    GLCD.SetDot(x2 + w - radius - 1 + x1, y2 + h - radius - 1 + y1, BLACK);
+    GLCD.SetDot(x2 + w - radius - 1 + y1, y2 + h - radius - 1 + x1, BLACK);
+
+    // lower left corner
+    GLCD.SetDot(x2 + radius - x1, y2 + h - radius - 1 + y1, BLACK);
+    GLCD.SetDot(x2 + radius - y1, y2 + h - radius - 1 + x1, BLACK);
+    if (tSwitch < 0)
+    {
+      tSwitch += (4 * x1 + 6);
+    }
+    else
+    {
+      tSwitch += (4 * (x1 - y1) + 10);
+      y1--;
+    }
+    x1++;
+  }
+  for (int i = 0; i < w - (2 * radius); i++)
+  {
+    GLCD.SetDot(x2 + radius + i, y2, BLACK);
+  }
+  for (int i = 0; i < w - (2 * radius); i++)
+  {
+    GLCD.SetDot(x2 + radius + i, y2 + h - 1, BLACK);
+  }
+  for (int i = 0; i < h - (2 * radius); i++)
+  {
+    GLCD.SetDot(x2 , y2 + radius + i, BLACK);
+  }
+  for (int i = 0; i < h - (2 * radius); i++)
+  {
+    GLCD.SetDot(x2 + w - 1 , y2 + radius + i, BLACK);
+  }
 }
 
