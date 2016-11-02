@@ -287,16 +287,18 @@ void loop() {
     else {
       GLCD.SetDot(x, y, WHITE);//Erasing
 
+      //LCD updated to show Erase mode
       lcd.setCursor(0, 0);
-      lcd.print("Brush Size: 1x1");
+      lcd.print("Brush Size: 1x1 ");
       lcd.setCursor(0, 1);
-      lcd.print("Mode: Erase");
+      lcd.print("Mode: Erase     ");
     }
   } else {
+    //LCD updated to show PenLift Mode
     lcd.setCursor(0, 0);
     lcd.print("Brush Size: None");
     lcd.setCursor(0, 1);
-    lcd.print("Mode: Pen Lifted");
+    lcd.print("Mode: Pen Lift");
   }
 
   //Store the real image so that the cursor can be put
@@ -458,7 +460,7 @@ void clearScreenFunc() {
 
 //Setting Brush size with designated waiting period for confirming decision
 void setBrush(int BrushType, long waitPeriod) {
-  while (true) {
+ // while (true) {
     long start =  millis();
     if (BrushType == 0) {
       GLCD.SetDot(x, y, BLACK);
@@ -476,19 +478,20 @@ void setBrush(int BrushType, long waitPeriod) {
         GLCD.SetDot(x + i, y + j, BLACK);
       }
     }
-    while (millis() - start < waitPeriod) {}
-    if (brushType == BrushType) break;
-    else BrushType = brushType;
-  }
+   // while (millis() - start < waitPeriod) {}
+   // if (brushType == BrushType) break;
+   // else BrushType = brushType;
+  //}
+  //LCD updated for current Brush Size
   lcd.setCursor(0, 0);
   if (BrushType == 0) {
-    lcd.print("Brush Size: 1x1");
+    lcd.print("Brush Size: 1x1 ");
   }
   if (BrushType == 1) {
-    lcd.print("Brush Size: 2x2");
+    lcd.print("Brush Size: 2x2 ");
   }
   if (BrushType == 2) {
-    lcd.print("Brush Size: 3x3");
+    lcd.print("Brush Size: 3x3 ");
   }
 }
 
@@ -748,9 +751,9 @@ void InitLCDs(long delaytime) {
   GLCD.ClearScreen();
   lcd.clear();
 
-  lcd.print("Brush Size: 1x1");
+  lcd.print("Brush Size: 1x1 ");
   lcd.setCursor(0, 1);
-  lcd.print("Mode: Default");
+  lcd.print("Mode: Default   ");
   GLCD.CursorTo(x, y);
 }
 
