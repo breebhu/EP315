@@ -45,14 +45,13 @@ const int ledPin2 = 6;
 const int ledPin3 = 7;
 const int ledPin4 = 8;
 const int ledPin5 = 9;
-const int ledPin6 = 10;
-const int ledPin7 = 11;
 
 int value2 = 0; // variable to read the value from the joystick X pin
 int value1 = 0; // variable to read the value from the joystick Y pin
 
 bool lastClearScreen = false;
 volatile int brushType = 0;
+volatile int prevBrushType = 0;
 
 int x, y; //stores current position of cursor
 
@@ -123,10 +122,14 @@ void loop() {
 
   if (rectMode) //check if currently user is in rectangle mode
   {
+    //Status Update on LCD
     lcd.setCursor(0, 0);
     lcd.print("Brush Size: 1x1 ");
     lcd.setCursor(0, 1);
     lcd.print("Mode: Rectangle ");
+
+    brushType = 0; //Smallest brush size for special modes
+
     for (int i = 0; i < curveCount; i++) //print real image corresponding to points of the previous (temporary) rectangle
     {
       int x0 = Cx[i];
@@ -205,10 +208,14 @@ void loop() {
   }
   else if (circMode) //check if currently user is in circle mode
   {
+    //Status Update on LCD
     lcd.setCursor(0, 0);
     lcd.print("Brush Size: 1x1 ");
     lcd.setCursor(0, 1);
     lcd.print("Mode: Circle   ");
+
+    brushType = 0; //Smallest brush size for special modes
+
     for (int i = 0; i < LCount; i++) //print real image corresponding to points of the previous (temporary) radius
     {
       int x0 = Lx[i] % 128;
@@ -303,6 +310,7 @@ void loop() {
       if (brushType == 2) {
         lcd.print("Brush Size: 3x3 ");
       }
+      if(prevBrushType != brushType)LED_Blink(ledPin5,100);
       lcd.setCursor(0, 1);
       lcd.print("Mode : Default   ");
     }
@@ -320,7 +328,7 @@ void loop() {
       if (brushType == 2) {
         lcd.print("Brush Size: 3x3 ");
       }
-      lcd.setCursor(0, 1);
+      if(prevBrushType != brushType)LED_Blink(ledPin5,100);
       lcd.setCursor(0, 1);
       lcd.print("Mode: Erase     ");
     }
@@ -384,6 +392,7 @@ void clearScreenISR() {
 
 void brushSizeChangeISR() {
   if (millis() - brushTypeLast > debounceTime) {
+    prevBrushType = brushType;
     if (brushType < 2) {
       brushType++;
     }
@@ -441,21 +450,13 @@ void ledLighting() {
   digitalWrite(ledPin2, eraseMode);
   digitalWrite(ledPin3, circMode);
   digitalWrite(ledPin4, rectMode);
-  if (brushType == 0) {
-    digitalWrite(ledPin5, HIGH);
-    digitalWrite(ledPin6, LOW);
-    digitalWrite(ledPin7, LOW);
-  }
-  if (brushType == 1) {
-    digitalWrite(ledPin5, LOW);
-    digitalWrite(ledPin6, HIGH);
-    digitalWrite(ledPin7, LOW);
-  }
-  if (brushType == 0) {
-    digitalWrite(ledPin5, LOW);
-    digitalWrite(ledPin6, LOW);
-    digitalWrite(ledPin7, HIGH);
-  }
+}
+
+void LED_Blink(int ledPin, long delaytime){
+  digitalWrite(ledPin, HIGH);
+  delay(delaytime);
+  digitalWrite(ledPin, LOW);
+  delay(delaytime);
 }
 
 //Sets the Cursor according to Brush Size
@@ -833,8 +834,6 @@ void InitPins() {
   pinMode(ledPin3, OUTPUT);
   pinMode(ledPin4, OUTPUT);
   pinMode(ledPin5, OUTPUT);
-  pinMode(ledPin6, OUTPUT);
-  pinMode(ledPin7, OUTPUT);
 
   attachInterrupt(digitalPinToInterrupt(PenLiftPin), penLiftISR, FALLING);
   attachInterrupt(digitalPinToInterrupt(ErasePin), eraseModeISR, RISING);
