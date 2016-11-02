@@ -114,6 +114,10 @@ void loop() {
 
   if (rectMode) //check if currently user is in rectangle mode
   {
+    lcd.setCursor(0, 0);
+    lcd.print("Brush Size: 1x1");
+    lcd.setCursor(0, 1);
+    lcd.print("Mode: Rectangle");
     for (int i = 0; i < curveCount; i++) //print real image corresponding to points of the previous (temporary) rectangle
     {
       int x0 = Cx[i];
@@ -192,6 +196,10 @@ void loop() {
   }
   else if (circMode) //check if currently user is in circle mode
   {
+    lcd.setCursor(0, 0);
+    lcd.print("Brush Size: 1x1");
+    lcd.setCursor(0, 1);
+    lcd.print("Mode: Circle");
     for (int i = 0; i < LCount; i++) //print real image corresponding to points of the previous (temporary) radius
     {
       int x0 = Lx[i] % 128;
@@ -274,11 +282,21 @@ void loop() {
   //If the user is not in one of the "special" Modes
   else if (!penLift) {//Pen is Down on Canvas
     if (!eraseMode) {//User is not erasing - Erase Mode allows only one Brush Size
-      setBrush(brushType,brushSizeChangeTime);//Set the brush Size for Painting
+      setBrush(brushType, brushSizeChangeTime); //Set the brush Size for Painting
     }
     else {
       GLCD.SetDot(x, y, WHITE);//Erasing
+
+      lcd.setCursor(0, 0);
+      lcd.print("Brush Size: 1x1");
+      lcd.setCursor(0, 1);
+      lcd.print("Mode: Erase");
     }
+  } else {
+    lcd.setCursor(0, 0);
+    lcd.print("Brush Size: None");
+    lcd.setCursor(0, 1);
+    lcd.print("Mode: Pen Lifted");
   }
 
   //Store the real image so that the cursor can be put
@@ -461,6 +479,16 @@ void setBrush(int BrushType, long waitPeriod) {
     while (millis() - start < waitPeriod) {}
     if (brushType == BrushType) break;
     else BrushType = brushType;
+  }
+  lcd.setCursor(0, 0);
+  if (BrushType == 0) {
+    lcd.print("Brush Size: 1x1");
+  }
+  if (BrushType == 1) {
+    lcd.print("Brush Size: 2x2");
+  }
+  if (BrushType == 2) {
+    lcd.print("Brush Size: 3x3");
   }
 }
 
@@ -720,7 +748,9 @@ void InitLCDs(long delaytime) {
   GLCD.ClearScreen();
   lcd.clear();
 
-  lcd.print("BrushSize: 0, Mode: Default");
+  lcd.print("Brush Size: 1x1");
+  lcd.setCursor(0, 1);
+  lcd.print("Mode: Default");
   GLCD.CursorTo(x, y);
 }
 
@@ -731,7 +761,9 @@ void InitScreen(long delaytime) {
   GLCD.DefineArea(textAreaBOTTOM, Callibri10);
   GLCD.DrawString("Created by\n Reebhu Bhattacharyya\n Archit Bhatnagar", gTextfmt_left, gTextfmt_center);
   lcd.setCursor(0, 0);
-  lcd.print("Welcome, Let's Paint");
+  lcd.print("Welcome!!");
+  lcd.setCursor(0, 1);
+  lcd.print("Let's Paint");
   delay(delaytime);
 }
 
