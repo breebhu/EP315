@@ -34,10 +34,19 @@ const int joyPin1 = A4;
 const int PenLiftPin = 2;
 const int ErasePin = 3;
 const int ClearPin = 18;
-const int BrushSizeChangePin = 19;
+const int CircPin = 19;
 const int RectPin = 20;
-const int CircPin = 21;
+const int BrushSizeChangePin = 21;
 //const int OnOffPin = 4;
+
+//Led Pin Declarations
+const int ledPin1 = 5;
+const int ledPin2 = 6;
+const int ledPin3 = 7;
+const int ledPin4 = 8;
+const int ledPin5 = 9;
+const int ledPin6 = 10;
+const int ledPin7 = 11;
 
 int value2 = 0; // variable to read the value from the joystick X pin
 int value1 = 0; // variable to read the value from the joystick Y pin
@@ -294,15 +303,24 @@ void loop() {
       if (brushType == 2) {
         lcd.print("Brush Size: 3x3 ");
       }
-      lcd.setCursor(0,1);
+      lcd.setCursor(0, 1);
       lcd.print("Mode : Default   ");
     }
     else {
       setBrush(brushType, brushSizeChangeTime, WHITE); //Set the brush Size for Erasing
-      
+
       //LCD updated to show Erase mode
       lcd.setCursor(0, 0);
-      lcd.print("Brush Size: 1x1 ");
+      if (brushType == 0) {
+        lcd.print("Brush Size: 1x1 ");
+      }
+      if (brushType == 1) {
+        lcd.print("Brush Size: 2x2 ");
+      }
+      if (brushType == 2) {
+        lcd.print("Brush Size: 3x3 ");
+      }
+      lcd.setCursor(0, 1);
       lcd.setCursor(0, 1);
       lcd.print("Mode: Erase     ");
     }
@@ -331,6 +349,8 @@ void loop() {
 
   //Command Clears screen
   if (clearScreen) clearScreenFunc();
+
+  ledLighting(); //Controls Lighting of LEDs associated with Buttons
   //  else {
   //    InitScreen(1000);
   //  }
@@ -416,6 +436,28 @@ void CircPinISR()
   }
 }
 
+void ledLighting() {
+  digitalWrite(ledPin1, penLift);
+  digitalWrite(ledPin2, eraseMode);
+  digitalWrite(ledPin3, circMode);
+  digitalWrite(ledPin4, rectMode);
+  if (brushType == 0) {
+    digitalWrite(ledPin5, HIGH);
+    digitalWrite(ledPin6, LOW);
+    digitalWrite(ledPin7, LOW);
+  }
+  if (brushType == 1) {
+    digitalWrite(ledPin5, LOW);
+    digitalWrite(ledPin6, HIGH);
+    digitalWrite(ledPin7, LOW);
+  }
+  if (brushType == 0) {
+    digitalWrite(ledPin5, LOW);
+    digitalWrite(ledPin6, LOW);
+    digitalWrite(ledPin7, HIGH);
+  }
+}
+
 //Sets the Cursor according to Brush Size
 int setcursor(int BrushType) {
   int color = BLACK;
@@ -466,6 +508,14 @@ void clearScreenFunc() {
   real_image[1][1] = 1;
   GLCD.ClearScreen();
   GLCD.CursorTo(x, y);
+
+  //Defaulting
+  penLift = false;
+  eraseMode = false;
+  rectMode = false, nextRectMode = false, prevRectMode = false;
+  circMode = false, nextCircMode = false, prevCircMode = false;
+  brushType = 0;
+
   clearScreen = false;
   lastClearScreen = true;
   //indicate to next loop that the screen has been cleared and hence real image must be set to zero
@@ -777,6 +827,14 @@ void InitPins() {
   //pinMode(OnOffPin, INPUT);
   pinMode(PenLiftPin, INPUT);
   digitalWrite(PenLiftPin, HIGH);
+
+  pinMode(ledPin1, OUTPUT);
+  pinMode(ledPin2, OUTPUT);
+  pinMode(ledPin3, OUTPUT);
+  pinMode(ledPin4, OUTPUT);
+  pinMode(ledPin5, OUTPUT);
+  pinMode(ledPin6, OUTPUT);
+  pinMode(ledPin7, OUTPUT);
 
   attachInterrupt(digitalPinToInterrupt(PenLiftPin), penLiftISR, FALLING);
   attachInterrupt(digitalPinToInterrupt(ErasePin), eraseModeISR, RISING);
