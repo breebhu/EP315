@@ -310,7 +310,11 @@ void loop() {
       if (brushType == 2) {
         lcd.print("Brush Size: 3x3 ");
       }
-      if(prevBrushType != brushType)LED_Blink(ledPin5,100);
+      if(prevBrushType != brushType)
+      {
+        LED_Blink(ledPin5,100);
+        prevBrushType=brushType;
+      }
       lcd.setCursor(0, 1);
       lcd.print("Mode : Default   ");
     }
@@ -328,7 +332,11 @@ void loop() {
       if (brushType == 2) {
         lcd.print("Brush Size: 3x3 ");
       }
-      if(prevBrushType != brushType)LED_Blink(ledPin5,100);
+      if(prevBrushType != brushType)
+      {
+        LED_Blink(ledPin5,100);
+        prevBrushType=brushType;
+      }
       lcd.setCursor(0, 1);
       lcd.print("Mode: Erase     ");
     }
